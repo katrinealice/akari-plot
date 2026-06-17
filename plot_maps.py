@@ -169,10 +169,10 @@ class AKARIMapPlotter:
 
                 map_data = hp.read_map(filename, memmap=True)
 
-                title = filename[-name_cut:]
-                outfile = f'{webpath}{title}.png'
+                file_title = filename[-name_cut:]
+                outfile = f'{webpath}{file_title}.pdf'
 
-                self._plot_single_map(map_data, title, outfile, vmin, vmax, cmap)
+                self._plot_single_map(map_data, band, outfile, vmin, vmax, cmap)
 
             print(f'{map_type} maps for {band} saved to {webpath}')
 
@@ -240,7 +240,7 @@ class AKARIMapPlotter:
                         reso=reso_arcmin,
                     )
 
-                    outfile = (f'{webpath}gnomview_{filename[-name_cut:]}_{coord[0]}_{coord[1]}.png')
+                    outfile = (f'{webpath}gnomview_{filename[-name_cut:]}_{coord[0]}_{coord[1]}.pdf')
 
                     plt.savefig(outfile,
                                 bbox_inches='tight',
@@ -249,7 +249,7 @@ class AKARIMapPlotter:
 
             print(f'done for {band}')
 
-    def plot_cls(self,bands=None,map_type='map',outfile='cls.png'):
+    def plot_cls(self,bands=None,map_type='map',outfile='cls.pdf'):
         """Compute and plot power spectra of the final map iteration."""
 
         if bands is None:
@@ -314,10 +314,10 @@ def main():
         'map':   {'vmin': -30, 'vmax': 30, 'toggle_last_only': False},
         'ncorr': {'vmin': -10, 'vmax': 10, 'toggle_last_only': True},
         'res':   {'vmin': -1, 'vmax': 1, 'toggle_last_only': True},
-        'rms':   {'vmin': 0, 'vmax': 2, 'toggle_last_only': True},
+        'rms':   {'vmin': 0, 'vmax': 8, 'toggle_last_only': True},
     }
 
-    # plotter.plot_all(map_configs=MAP_CONFIGS)
+    plotter.plot_all(map_configs=MAP_CONFIGS)
 
     ### FOR CREATING A SINGLE MAP TYPE WITH CUSTOM CONFIGURATION -- UNCOMMENT TO RUN
     # plotter.plot_band(band='160', map_type='rms', vmin=0, vmax=10, cmap=cmr.fusion_r, toggle_last_only=True)
@@ -329,7 +329,7 @@ def main():
     # plotter.plot_zoom_ins(bands=['160'], fov_deg=2, reso_arcmin=0.02, vmin=-27, vmax=102)
 
     ### FOR PLOTTING POWER SPECTRA -- UNCOMMENT TO RUN
-    plotter.plot_cls()
+    #plotter.plot_cls()
 
 if __name__ == "__main__":
     main()
