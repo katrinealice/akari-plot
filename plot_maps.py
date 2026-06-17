@@ -90,7 +90,7 @@ class AKARIMapPlotter:
 
         return file_list[:10] + [file_list[-1]]
 
-    def _plot_single_map(self, map_data, title, outfile, vmin, vmax, cmap):
+    def _plot_single_map(self, map_data, band, outfile, vmin, vmax, cmap):
         """Helper function to plot a single map with the given parameters and save it to the specified output file."""
 
         fig, ax = plt.subplots(figsize=(8, 5))
@@ -98,18 +98,32 @@ class AKARIMapPlotter:
 
         hp.mollview(
             map_data,
-            title=title,
+            title='',
             min=vmin,
             max=vmax,
             cmap=cmap,
             hold=True,
-            cbar=False,
+            cbar=False, # if true, roughly 50% cbar
+            # unit=r'MJy/sr',
         )
+
+        plt.annotate(f'{int(band)} $\\mu$m', 
+                xy=(0.05, 0.95), 
+                xycoords='axes fraction', 
+                fontsize=12, 
+                verticalalignment='top')
 
         hp.graticule(dmer=360, dpar=360, alpha=0)
 
-        divider = make_axes_locatable(ax)
-        cax = divider.append_axes("bottom", size="5%", pad="1%")
+        ## Full width cbar
+        # divider = make_axes_locatable(ax)
+        # cax = divider.append_axes("bottom", size="5%", pad="1%")
+ 
+        ## 70% cbar
+        # cax = fig.add_axes([0.15, 0.08, 0.70, 0.03]) # left, bottom, width, height
+
+        ## 50% cbar
+        cax = fig.add_axes([0.25, 0.12, 0.50, 0.03]) # left, bottom, width, height
 
         sm = mpl.cm.ScalarMappable(
             cmap=cmap,
@@ -117,12 +131,12 @@ class AKARIMapPlotter:
         )
         sm.set_array([])
 
-        fig.colorbar(
-            sm,
-            cax=cax,
-            orientation='horizontal',
-            ticks=[vmin, vmax]
-        )
+        cbar = fig.colorbar(
+                sm,
+                cax=cax,
+                orientation='horizontal',
+                ticks=[vmin, vmax])
+        cbar.set_label(r'MJy/sr', labelpad=4)
 
         plt.savefig(outfile,
                     bbox_inches='tight',
@@ -287,9 +301,9 @@ class AKARIMapPlotter:
         print(f'Cl plot saved to {webpath}{outfile}')
 
 def main():
-    parent_dir = "/mn/stornext/u3/katrinag/data_path/work_comm3/akari/new_hdf/n2048/"
-    chains_dir = os.path.join(parent_dir, "chains_akari_065_v01/")
-    out_dir = "/mn/stornext/d16/www_cmb/katrinag/for_vetle/chains_akari_065_v01/"
+    parent_dir = "/mn/stornext/u3/katrinag/data_path/work_comm3/akari/all_bands/n8192/"
+    chains_dir = os.path.join(parent_dir, "chains_akari_all_v01/")
+    out_dir = "/mn/stornext/d16/www_cmb/katrinag/akari_all_bands/"
 
     # Defines the plotter object
     plotter = AKARIMapPlotter.from_chains(chains_dir=chains_dir, out_dir=out_dir)
