@@ -13,6 +13,8 @@ import cmasher as cmr
 
 from astropy.io import fits
 
+from matplotlib.colors import ListedColormap
+
 # Sets style for all plots
 plt.rcParams['font.size'] = '16'
 plt.rcParams['savefig.facecolor']='white'
@@ -41,6 +43,12 @@ def get_nside(fits_file):
                 return hdu.header['NSIDE']
 
     raise KeyError(f"No NSIDE keyword found in {fits_file}")
+
+def _nonlinear_stretch(x):
+    x = np.asarray(x)
+    return np.sign(x) * np.log10(
+        0.5 * (np.abs(x) + np.sqrt(4.0 + x**2))
+    )
 
 # Plotting class for AKARI maps
 class AKARIMapPlotter:
@@ -90,17 +98,27 @@ class AKARIMapPlotter:
 
         return file_list[:10] + [file_list[-1]]
 
-    def _plot_single_map(self, map_data, band, outfile, vmin, vmax, cmap):
+    def _plot_single_map(self, map_data, band, outfile, vmin, vmax, cmap, figsize=(8,5), nonlinear=False):
         """Helper function to plot a single map with the given parameters and save it to the specified output file."""
+        plot_vmin = vmin
+        plot_vmax = vmax
 
-        fig, ax = plt.subplots(figsize=(8, 5))
+
+        if nonlinear:
+            map_data = _nonlinear_stretch(hp.ma(map_data))
+            plot_vmin = _nonlinear_stretch(vmin)
+            plot_vmax = _nonlinear_stretch(vmax)
+            
+            outfile = outfile.replace('.p', '_nonlinear.p')
+
+        fig, ax = plt.subplots(figsize=figsize)
         plt.axes(ax)
 
         hp.mollview(
             map_data,
             title='',
-            min=vmin,
-            max=vmax,
+            min=plot_vmin,
+            max=plot_vmax,
             cmap=cmap,
             hold=True,
             cbar=False, # if true, roughly 50% cbar
@@ -110,7 +128,7 @@ class AKARIMapPlotter:
         plt.annotate(f'{int(band)} $\\mu$m', 
                 xy=(0.05, 0.95), 
                 xycoords='axes fraction', 
-                fontsize=12, 
+                fontsize=18, 
                 verticalalignment='top')
 
         hp.graticule(dmer=360, dpar=360, alpha=0)
@@ -127,15 +145,22 @@ class AKARIMapPlotter:
 
         sm = mpl.cm.ScalarMappable(
             cmap=cmap,
-            norm=mpl.colors.Normalize(vmin=vmin, vmax=vmax)
+            norm=mpl.colors.Normalize(vmin=plot_vmin, vmax=plot_vmax)
         )
         sm.set_array([])
 
+        print(f'vmin: {vmin}, vmax: {vmax}')
+        print(f'vmin: {plot_vmin}, vmax: {plot_vmax}')
+
         cbar = fig.colorbar(
-                sm,
-                cax=cax,
-                orientation='horizontal',
-                ticks=[vmin, vmax])
+            sm,
+            cax=cax,
+            orientation='horizontal',
+            ticks=[plot_vmin, plot_vmax]
+        )
+
+        cbar.set_ticklabels([f'{vmin:g}', f'{vmax:g}'])
+    
         cbar.set_label(r'MJy/sr', labelpad=4)
 
         plt.savefig(outfile,
@@ -144,11 +169,13 @@ class AKARIMapPlotter:
 
         plt.close()
 
-    def plot_map_type(self, map_type, vmin, vmax, cmap, toggle_last_only=False, bands=None):
+    def plot_map_type(self, map_type, vmin, vmax, cmap, toggle_last_only=False, bands=None, figsize=(8,5), nonlinear=False, png=False):
         """Generates maps of the specified type for each band and saves them to the output directory. If bands is None, it defaults to all bands in self.bands."""
 
         if bands is None:
             bands = self.bands
+
+        outtype = 'png' if png else 'pdf'
 
         for band in bands:
             print(f'generating {map_type} map for {band}')
@@ -170,15 +197,17 @@ class AKARIMapPlotter:
                 map_data = hp.read_map(filename, memmap=True)
 
                 file_title = filename[-name_cut:]
-                outfile = f'{webpath}{file_title}.pdf'
+                outfile = f'{webpath}{file_title}.{outtype}'
 
-                self._plot_single_map(map_data, band, outfile, vmin, vmax, cmap)
+                self._plot_single_map(map_data, band, outfile, vmin, vmax, cmap, figsize, nonlinear=nonlinear)
 
             print(f'{map_type} maps for {band} saved to {webpath}')
 
-    def plot_band(self, band, map_type, vmin, vmax, cmap=cmr.fusion_r, toggle_last_only=True):
+    def plot_band(self, band, map_type, vmin, vmax, cmap=cmr.fusion_r, toggle_last_only=True, figsize=(8,5), nonlinear=False, png=False):
         """wrapper for single band plot"""
-        self.plot_map_type(map_type=map_type, vmin=vmin, vmax=vmax, cmap=cmap, toggle_last_only=toggle_last_only, bands=[band])
+        self.plot_map_type(map_type=map_type, vmin=vmin, vmax=vmax, cmap=cmap, 
+                           toggle_last_only=toggle_last_only, bands=[band], figsize=figsize,
+                           nonlinear=nonlinear, png=png)
 
     def plot_all(self, map_configs=None, cmap=cmr.fusion_r):
         """wrapper to plot all map types with their respective configurations"""
@@ -193,9 +222,12 @@ class AKARIMapPlotter:
                 vmax=cfg['vmax'],
                 cmap=cmap,
                 toggle_last_only=cfg['toggle_last_only'],
+                figsize=cfg.get('figsize', (8, 5)),
+                nonlinear=cfg.get('nonlinear', False),
+                png=cfg.get('png', False)
             )
 
-    def plot_zoom_ins(self, fov_deg=2, reso_arcmin=0.02, vmin=0,vmax=10,cmap=cm.thermal,toggle_last_only=True,bands=None):
+    def plot_zoom_ins(self, fov_deg=2, reso_arcmin=0.02, vmin=0,vmax=10,cmap=cm.thermal,toggle_last_only=True,bands=None, png=False):
 
         if bands is None:
             bands = self.bands
@@ -210,6 +242,7 @@ class AKARIMapPlotter:
         xsize = int(fov_deg * 60 / reso_arcmin)
 
         map_type = 'map'
+        outtype = 'png' if png else 'pdf'
 
         for band in bands:
             print(f'generating zoom-in {map_type} map for {band}')
@@ -240,7 +273,7 @@ class AKARIMapPlotter:
                         reso=reso_arcmin,
                     )
 
-                    outfile = (f'{webpath}gnomview_{filename[-name_cut:]}_{coord[0]}_{coord[1]}.pdf')
+                    outfile = (f'{webpath}gnomview_{filename[-name_cut:]}_{coord[0]}_{coord[1]}.{outtype}')
 
                     plt.savefig(outfile,
                                 bbox_inches='tight',
@@ -300,36 +333,87 @@ class AKARIMapPlotter:
 
         print(f'Cl plot saved to {webpath}{outfile}')
 
+
+    def plot_official_maps(self, official_path, nside=None, factor=1.0, vmin=-30, vmax=30, cmap=cmr.fusion_r, bands=None, nonlinear=False, png=False):
+
+        if bands is None:
+            bands = self.bands
+
+        if nside is None:
+            nside = self.nside
+
+        outtype = 'png' if png else 'pdf'
+
+        for band in bands:
+
+            print(f'generating official map for {band}')
+            filename = os.path.join(official_path,f'akari_{band}_1_{nside}.fits')
+            print(f'looking for file: {filename}')
+
+            if not os.path.exists(filename):
+                print(f'file not found: {filename}')
+                continue
+
+            map_data = hp.read_map(filename,memmap=True)
+            map_data *= factor
+
+            webpath = f'{self.out_dir}/n{nside}/{band}/'
+            os.makedirs(webpath, exist_ok=True)
+
+            outfile = (f'{webpath}official_akari_{band}_x{factor}.{outtype}')
+            self._plot_single_map(map_data, band, outfile, vmin, vmax, cmap, nonlinear=nonlinear)
+
+            print(f'saved {outfile}')
+  
+
 def main():
+    OFFICIAL_PATH = ('/mn/stornext/d23/cmbco/globe/akari/maps/')
     parent_dir = "/mn/stornext/u3/katrinag/data_path/work_comm3/akari/all_bands/n8192/"
-    chains_dir = os.path.join(parent_dir, "chains_akari_all_v01/")
-    out_dir = "/mn/stornext/d16/www_cmb/katrinag/akari_all_bands/"
+    chains_dir = os.path.join(parent_dir, "chains_akari_all_v02/")
+    out_dir = "/mn/stornext/d16/www_cmb/katrinag/akari_all_bands/cmap-compare/"
 
     # Defines the plotter object
     plotter = AKARIMapPlotter.from_chains(chains_dir=chains_dir, out_dir=out_dir)
 
+    # Defines the cmap
+    parchment = ListedColormap(np.loadtxt("parchment1.dat")/255.)
 
+    # ===================== COSMOGLOBE MAPS ===================== 
     ### FOR CREATING ALL THE DEFAULT OUTPUTS -- UNCOMMENT TO RUN
     MAP_CONFIGS = {
-        'map':   {'vmin': -30, 'vmax': 30, 'toggle_last_only': False},
+        'map':   {'vmin': -30, 'vmax': 30, 'toggle_last_only': True, 'figsize': (16, 10)},
         'ncorr': {'vmin': -10, 'vmax': 10, 'toggle_last_only': True},
         'res':   {'vmin': -1, 'vmax': 1, 'toggle_last_only': True},
         'rms':   {'vmin': 0, 'vmax': 8, 'toggle_last_only': True},
     }
 
-    plotter.plot_all(map_configs=MAP_CONFIGS)
+    plotter.plot_all(map_configs=MAP_CONFIGS, cmap=cmap)
 
     ### FOR CREATING A SINGLE MAP TYPE WITH CUSTOM CONFIGURATION -- UNCOMMENT TO RUN
-    # plotter.plot_band(band='160', map_type='rms', vmin=0, vmax=10, cmap=cmr.fusion_r, toggle_last_only=True)
+    plotter.plot_band(band='160', 
+                      map_type='map', 
+                      vmin=-10,          #-30
+                      vmax=1000,         #30
+                      cmap=cmr.fusion_r, #parchment
+                      nonlinear=True, 
+                      toggle_last_only=True, 
+                      figsize=(16,10), 
+                      png=True,
+                      )
 
     ### FOR CREATING ZOOM-IN PLOTS -- UNCOMMENT TO RUN
-    # plotter.plot_zoom_ins(vmin=-27, vmax=102)
+    plotter.plot_zoom_ins(vmin=-27, vmax=102)
 
     ### FOR CREATING ZOOM-IN PLOTS FOR A SINGLE BAND -- UNCOMMENT TO RUN
-    # plotter.plot_zoom_ins(bands=['160'], fov_deg=2, reso_arcmin=0.02, vmin=-27, vmax=102)
+    plotter.plot_zoom_ins(bands=['160'], fov_deg=2, reso_arcmin=0.02, vmin=-27, vmax=102)
 
     ### FOR PLOTTING POWER SPECTRA -- UNCOMMENT TO RUN
-    #plotter.plot_cls()
+    plotter.plot_cls()
+
+    # ===================== OFFICIAL MAPS =====================
+    plotter.plot_official_maps(official_path=OFFICIAL_PATH, nside=8192,factor=1,vmin=-10,vmax=10,)
+
+
 
 if __name__ == "__main__":
     main()
