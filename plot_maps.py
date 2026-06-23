@@ -368,15 +368,16 @@ class AKARIMapPlotter:
 
 def main():
     OFFICIAL_PATH = ('/mn/stornext/d23/cmbco/globe/akari/maps/')
-    parent_dir = "/mn/stornext/u3/katrinag/data_path/work_comm3/akari/all_bands/n8192/"
-    chains_dir = os.path.join(parent_dir, "chains_akari_all_v02/")
-    out_dir = "/mn/stornext/d16/www_cmb/katrinag/akari_all_bands/cmap-compare/"
+    parent_dir = "/mn/stornext/u3/katrinag/data_path/work_comm3/akari/gain_mask/n2048/"
+    chains_dir = os.path.join(parent_dir, "chains_akari_160_n2048_20/")
+    out_dir = "/mn/stornext/d16/www_cmb/katrinag/akari_160_bitmask-20/"
 
     # Defines the plotter object
     plotter = AKARIMapPlotter.from_chains(chains_dir=chains_dir, out_dir=out_dir)
 
     # Defines the cmap
     parchment = ListedColormap(np.loadtxt("parchment1.dat")/255.)
+    cmap = parchment # cmr.fusion_r
 
     # ===================== COSMOGLOBE MAPS ===================== 
     ### FOR CREATING ALL THE DEFAULT OUTPUTS -- UNCOMMENT TO RUN
@@ -390,28 +391,28 @@ def main():
     plotter.plot_all(map_configs=MAP_CONFIGS, cmap=cmap)
 
     ### FOR CREATING A SINGLE MAP TYPE WITH CUSTOM CONFIGURATION -- UNCOMMENT TO RUN
-    plotter.plot_band(band='160', 
-                      map_type='map', 
-                      vmin=-10,          #-30
-                      vmax=1000,         #30
-                      cmap=cmr.fusion_r, #parchment
-                      nonlinear=True, 
-                      toggle_last_only=True, 
-                      figsize=(16,10), 
-                      png=True,
-                      )
+    # plotter.plot_band(band='160', 
+    #                   map_type='map', 
+    #                   vmin=-10,          #-30
+    #                   vmax=1000,         #30
+    #                   cmap=cmr.fusion_r, #parchment
+    #                   nonlinear=True, 
+    #                   toggle_last_only=True, 
+    #                   figsize=(16,10), 
+    #                   png=True,
+    #                   )
 
     ### FOR CREATING ZOOM-IN PLOTS -- UNCOMMENT TO RUN
-    plotter.plot_zoom_ins(vmin=-27, vmax=102)
+    #plotter.plot_zoom_ins(vmin=-27, vmax=102)
 
     ### FOR CREATING ZOOM-IN PLOTS FOR A SINGLE BAND -- UNCOMMENT TO RUN
-    plotter.plot_zoom_ins(bands=['160'], fov_deg=2, reso_arcmin=0.02, vmin=-27, vmax=102)
+    #plotter.plot_zoom_ins(bands=['160'], fov_deg=2, reso_arcmin=0.02, vmin=-27, vmax=102)
 
     ### FOR PLOTTING POWER SPECTRA -- UNCOMMENT TO RUN
-    plotter.plot_cls()
+    #plotter.plot_cls()
 
     # ===================== OFFICIAL MAPS =====================
-    plotter.plot_official_maps(official_path=OFFICIAL_PATH, nside=8192,factor=1,vmin=-10,vmax=10,)
+    #plotter.plot_official_maps(official_path=OFFICIAL_PATH, nside=8192,factor=1,vmin=-10,vmax=10,)
 
 
 
